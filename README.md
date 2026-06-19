@@ -97,6 +97,16 @@ rdev resume foo
 rdev stop foo
 ```
 
+Generate shell completions manually:
+
+```sh
+rdev completions bash
+rdev completions fish
+rdev completions zsh
+```
+
+The Nix package installs bash, fish, and zsh completions automatically.
+
 ## Recovery
 
 If the laptop cache should be discarded and rebuilt from the desktop:

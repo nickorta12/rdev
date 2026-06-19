@@ -12,7 +12,7 @@ use std::io::{self, Write};
 use std::process::Command as ProcessCommand;
 
 use anyhow::{Context, Result, bail};
-use clap::Parser;
+use clap::{CommandFactory, Parser};
 
 use crate::cli::{Cli, Command};
 use crate::config::Config;
@@ -38,7 +38,14 @@ fn run(cli: Cli) -> Result<()> {
         Command::List => list(),
         Command::Remove { name } => remove(&name),
         Command::Doctor => doctor(),
+        Command::Completions { shell } => completions(shell),
     }
+}
+
+fn completions(shell: clap_complete::Shell) -> Result<()> {
+    let mut command = Cli::command();
+    clap_complete::generate(shell, &mut command, "rdev", &mut io::stdout());
+    Ok(())
 }
 
 fn init(name: &str, remote: &str) -> Result<()> {

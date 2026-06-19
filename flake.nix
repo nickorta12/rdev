@@ -22,6 +22,17 @@
           version = "0.1.0";
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
+
+          nativeBuildInputs = [
+            pkgs.installShellFiles
+          ];
+
+          postInstall = ''
+            installShellCompletion --cmd rdev \
+              --bash <($out/bin/rdev completions bash) \
+              --fish <($out/bin/rdev completions fish) \
+              --zsh <($out/bin/rdev completions zsh)
+          '';
         };
 
         devShells.default = pkgs.mkShell {
