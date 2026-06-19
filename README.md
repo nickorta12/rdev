@@ -62,18 +62,12 @@ Open a local cache shell:
 rdev edit foo
 ```
 
-If the cache is empty, `rdev edit` bootstraps it from the desktop with `rsync`, excluding `.git/` and heavy generated directories. It then starts or resumes the Mutagen session and opens a local shell in the cache.
-
-Run a local editor in the cache:
-
-```sh
-rdev edit foo -- nvim .
-```
+If the cache is empty, `rdev edit` bootstraps it from the desktop with `rsync`, excluding `.git/` and ignored paths from the remote repository. It then starts or resumes the Mutagen session and opens a local shell in the cache.
 
 Run a remote command in the real desktop repo:
 
 ```sh
-rdev run foo -- cargo test
+rdev run foo cargo test
 ```
 
 Open a remote interactive shell:
@@ -106,6 +100,7 @@ rdev completions zsh
 ```
 
 The Nix package installs bash, fish, and zsh completions automatically.
+Project-name completions are dynamic and read the configured projects from `rdev`'s config.
 
 ## Recovery
 

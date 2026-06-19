@@ -19,9 +19,9 @@ pub fn run_script(remote_path: &str, command: &[String]) -> String {
         .collect::<Vec<_>>()
         .join(" ");
     format!(
-        "cd {} && exec {}",
+        "cd {} && exec \"${{SHELL:-/bin/sh}}\" -ic {}",
         quote(remote_path).into_owned(),
-        quoted_command
+        quote(&quoted_command).into_owned()
     )
 }
 
@@ -71,6 +71,7 @@ pub fn interactive_shell(project: &ProjectConfig) -> Result<()> {
 
 pub fn run(project: &ProjectConfig, command: &[String]) -> Result<()> {
     let status = Command::new("ssh")
+        .arg("-t")
         .arg(&project.host)
         .arg(run_script(&project.remote_path, command))
         .status()
@@ -125,7 +126,7 @@ mod tests {
         );
         assert_eq!(
             script,
-            "cd '/home/nick/src/my repo' && exec cargo test 'name with spaces'"
+            "cd '/home/nick/src/my repo' && exec \"${SHELL:-/bin/sh}\" -ic 'cargo test '\\''name with spaces'\\'''"
         );
     }
 

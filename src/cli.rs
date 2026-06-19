@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueHint};
 use clap_complete::Shell;
 
 #[derive(Debug, Parser)]
@@ -9,8 +9,7 @@ use clap_complete::Shell;
     after_help = "Examples:
   rdev init foo desktop:/home/nick/src/foo
   rdev edit foo
-  rdev edit foo -- nvim .
-  rdev run foo -- cargo test
+  rdev run foo cargo test
   rdev shell foo
   rdev status foo
   rdev completions zsh > _rdev"
@@ -36,18 +35,14 @@ pub enum Command {
         remote: String,
     },
     #[command(
-        about = "Open or use the local cache",
-        long_about = "Ensure the local cache exists, bootstrap it from the remote repo if empty, start or resume Mutagen sync, then open a local shell in the cache. With a command after --, run that local command in the cache instead.",
+        about = "Open the local cache",
+        long_about = "Ensure the local cache exists, bootstrap it from the remote repo if empty, start or resume Mutagen sync, then open a local shell in the cache.",
         after_help = "Examples:
-  rdev edit foo
-  rdev edit foo -- nvim .
-  rdev edit foo -- rg TODO"
+  rdev edit foo"
     )]
     Edit {
         #[arg(help = "Configured project name")]
         name: String,
-        #[arg(help = "Optional local command to run inside the cache", last = true)]
-        command: Vec<String>,
     },
     #[command(
         about = "Open a remote shell",
@@ -61,16 +56,16 @@ pub enum Command {
     },
     #[command(
         about = "Run a remote command",
-        long_about = "Flush Mutagen first, then run the command on the desktop via SSH in the real repository directory. Put the command after -- so its arguments are passed through safely.",
+        long_about = "Start or resume Mutagen, flush pending sync changes, then run the command on the desktop via SSH in the real repository directory.",
         after_help = "Examples:
-  rdev run foo -- cargo test
-  rdev run foo -- nix flake check
-  rdev run foo -- just build"
+  rdev run foo cargo test
+  rdev run foo nix flake check
+  rdev run foo just build"
     )]
     Run {
         #[arg(help = "Configured project name")]
         name: String,
-        #[arg(help = "Remote command and arguments", last = true, required = true)]
+        #[arg(help = "Remote command and arguments", value_hint = ValueHint::CommandWithArguments, required = true, trailing_var_arg = true)]
         command: Vec<String>,
     },
     #[command(
@@ -101,7 +96,8 @@ pub enum Command {
         name: String,
     },
     #[command(
-        about = "Resume the Mutagen sync session",
+        about = "Resume or create the Mutagen sync session",
+        long_about = "Resume the Mutagen sync session if it exists. If it was terminated with rdev stop, create a new session with the configured project settings.",
         after_help = "Examples:
   rdev resume foo"
     )]
@@ -166,4 +162,22 @@ pub enum Command {
         #[arg(help = "Shell to generate completions for")]
         shell: Shell,
     },
+    #[command(name = "__project-names", hide = true)]
+    ProjectNames,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn run_command_does_not_require_double_dash() {
+        let cli = Cli::parse_from(["rdev", "run", "foo", "cargo", "test", "--", "--nocapture"]);
+        let Command::Run { name, command } = cli.command else {
+            panic!("expected run command");
+        };
+
+        assert_eq!(name, "foo");
+        assert_eq!(command, vec!["cargo", "test", "--", "--nocapture"]);
+    }
 }

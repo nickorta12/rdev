@@ -1,5 +1,6 @@
 mod bincheck;
 mod cli;
+mod completions;
 mod config;
 mod mutagen;
 mod paths;
@@ -12,7 +13,7 @@ use std::io::{self, Write};
 use std::process::Command as ProcessCommand;
 
 use anyhow::{Context, Result, bail};
-use clap::{CommandFactory, Parser};
+use clap::Parser;
 
 use crate::cli::{Cli, Command};
 use crate::config::Config;
@@ -26,25 +27,27 @@ fn main() -> Result<()> {
 fn run(cli: Cli) -> Result<()> {
     match cli.command {
         Command::Init { name, remote } => init(&name, &remote),
-        Command::Edit { name, command } => edit(&name, &command),
+        Command::Edit { name } => edit(&name),
         Command::Shell { name } => remote_shell(&name),
         Command::Run { name, command } => remote_run(&name, &command),
         Command::Status { name } => status(&name),
         Command::Flush { name } => with_project(&name, |project| mutagen::flush(&project)),
         Command::Pause { name } => with_project(&name, |project| mutagen::pause(&project)),
-        Command::Resume { name } => with_project(&name, |project| mutagen::resume(&project)),
+        Command::Resume { name } => {
+            with_project(&name, |project| mutagen::start_or_resume(&project))
+        }
         Command::Stop { name } => with_project(&name, |project| mutagen::terminate(&project)),
         Command::ResetFromRemote { name, yes } => reset_from_remote(&name, yes),
         Command::List => list(),
         Command::Remove { name } => remove(&name),
         Command::Doctor => doctor(),
         Command::Completions { shell } => completions(shell),
+        Command::ProjectNames => project_names(),
     }
 }
 
 fn completions(shell: clap_complete::Shell) -> Result<()> {
-    let mut command = Cli::command();
-    clap_complete::generate(shell, &mut command, "rdev", &mut io::stdout());
+    completions::generate(shell).context("failed to generate completions")?;
     Ok(())
 }
 
@@ -78,23 +81,19 @@ fn init(name: &str, remote: &str) -> Result<()> {
     Ok(())
 }
 
-fn edit(name: &str, command: &[String]) -> Result<()> {
+fn edit(name: &str) -> Result<()> {
     bincheck::require_binaries(&["rsync", "mutagen"])?;
     let project = load_project(name)?;
     ensure_local_cache(&project)?;
     bootstrap_if_empty(&project)?;
     mutagen::start_or_resume(&project)?;
-
-    if command.is_empty() {
-        local_shell(&project)
-    } else {
-        local_command(&project, command)
-    }
+    local_shell(&project)
 }
 
 fn remote_shell(name: &str) -> Result<()> {
     bincheck::require_binaries(&["ssh", "mutagen"])?;
     let project = load_project(name)?;
+    mutagen::start_or_resume(&project)?;
     mutagen::flush(&project)?;
     ssh::interactive_shell(&project)
 }
@@ -102,6 +101,7 @@ fn remote_shell(name: &str) -> Result<()> {
 fn remote_run(name: &str, command: &[String]) -> Result<()> {
     bincheck::require_binaries(&["ssh", "mutagen"])?;
     let project = load_project(name)?;
+    mutagen::start_or_resume(&project)?;
     mutagen::flush(&project)?;
     ssh::run(&project, command)
 }
@@ -117,10 +117,15 @@ fn status(name: &str) -> Result<()> {
     println!("mutagen session: {}", project.mutagen_session);
     println!();
     println!("mutagen status:");
-    match mutagen::status(&project) {
-        Ok(text) if text.trim().is_empty() => println!("  no status output"),
-        Ok(text) => print_indented(&text),
-        Err(err) => println!("  unavailable: {err:#}"),
+    if mutagen::sync_exists(&project.mutagen_session)? {
+        match mutagen::status(&project) {
+            Ok(text) if text.trim().is_empty() => println!("  running, no status output"),
+            Ok(text) => print_indented(&text),
+            Err(err) => println!("  unavailable: {err:#}"),
+        }
+    } else {
+        println!("  not running");
+        println!("  start it with: rdev resume {}", project.name);
     }
     println!();
     println!("remote git status --short:");
@@ -162,6 +167,14 @@ fn list() -> Result<()> {
             "{}\t{}:{}\t{}",
             project.name, project.host, project.remote_path, project.local_path
         );
+    }
+    Ok(())
+}
+
+fn project_names() -> Result<()> {
+    let config = Config::load(&paths::config_path()?)?;
+    for project in config.projects {
+        println!("{}", project.name);
     }
     Ok(())
 }
@@ -223,23 +236,6 @@ fn local_shell(project: &ProjectConfig) -> Result<()> {
 
     if !status.success() {
         bail!("local shell exited with status {status}");
-    }
-
-    Ok(())
-}
-
-fn local_command(project: &ProjectConfig, command: &[String]) -> Result<()> {
-    let (program, args) = command
-        .split_first()
-        .context("local command cannot be empty")?;
-    let status = ProcessCommand::new(program)
-        .args(args)
-        .current_dir(&project.local_path)
-        .status()
-        .context("failed to run local command")?;
-
-    if !status.success() {
-        bail!("local command failed with status {status}");
     }
 
     Ok(())
