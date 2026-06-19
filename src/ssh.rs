@@ -13,16 +13,29 @@ pub fn shell_script(remote_path: &str) -> String {
 }
 
 pub fn run_script(remote_path: &str, command: &[String]) -> String {
-    let quoted_command = command
-        .iter()
-        .map(|arg| quote(arg).into_owned())
-        .collect::<Vec<_>>()
-        .join(" ");
+    let quoted_command = quoted_command(command);
     format!(
         "cd {} && exec \"${{SHELL:-/bin/sh}}\" -ic {}",
         quote(remote_path).into_owned(),
         quote(&quoted_command).into_owned()
     )
+}
+
+pub fn noninteractive_run_script(remote_path: &str, command: &[String]) -> String {
+    let quoted_command = quoted_command(command);
+    format!(
+        "cd {} && exec {}",
+        quote(remote_path).into_owned(),
+        quoted_command
+    )
+}
+
+fn quoted_command(command: &[String]) -> String {
+    command
+        .iter()
+        .map(|arg| quote(arg).into_owned())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 pub fn gitignore_script(remote_path: &str) -> String {
@@ -87,7 +100,7 @@ pub fn run(project: &ProjectConfig, command: &[String]) -> Result<()> {
 pub fn git_status(project: &ProjectConfig) -> Result<String> {
     let output = Command::new("ssh")
         .arg(&project.host)
-        .arg(run_script(
+        .arg(noninteractive_run_script(
             &project.remote_path,
             &["git".into(), "status".into(), "--short".into()],
         ))
@@ -127,6 +140,18 @@ mod tests {
         assert_eq!(
             script,
             "cd '/home/nick/src/my repo' && exec \"${SHELL:-/bin/sh}\" -ic 'cargo test '\\''name with spaces'\\'''"
+        );
+    }
+
+    #[test]
+    fn quotes_noninteractive_remote_command_arguments() {
+        let script = noninteractive_run_script(
+            "/home/nick/src/my repo",
+            &["git".into(), "status".into(), "--short".into()],
+        );
+        assert_eq!(
+            script,
+            "cd '/home/nick/src/my repo' && exec git status --short"
         );
     }
 
