@@ -3,7 +3,7 @@ use std::process::Command;
 use anyhow::{Context, Result, bail};
 use shell_words::quote;
 
-use crate::project::ProjectConfig;
+use crate::project::{ProjectConfig, ignore_patterns_from_gitignore};
 
 pub fn shell_script(remote_path: &str) -> String {
     format!(
@@ -23,6 +23,35 @@ pub fn run_script(remote_path: &str, command: &[String]) -> String {
         quote(remote_path).into_owned(),
         quoted_command
     )
+}
+
+pub fn gitignore_script(remote_path: &str) -> String {
+    format!(
+        "cd {} && if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then root=$(git rev-parse --show-toplevel) && if test -f \"$root/.gitignore\"; then cat \"$root/.gitignore\"; fi; else exit 10; fi",
+        quote(remote_path).into_owned()
+    )
+}
+
+pub fn remote_gitignore_patterns(host: &str, remote_path: &str) -> Result<Option<Vec<String>>> {
+    let output = Command::new("ssh")
+        .arg(host)
+        .arg(gitignore_script(remote_path))
+        .output()
+        .context("failed to query remote .gitignore")?;
+
+    if output.status.success() {
+        let contents = String::from_utf8_lossy(&output.stdout);
+        return Ok(Some(ignore_patterns_from_gitignore(&contents)));
+    }
+
+    if output.status.code() == Some(10) {
+        return Ok(None);
+    }
+
+    let mut text = String::new();
+    text.push_str(&String::from_utf8_lossy(&output.stdout));
+    text.push_str(&String::from_utf8_lossy(&output.stderr));
+    bail!("failed to query remote .gitignore: {}", text.trim());
 }
 
 pub fn interactive_shell(project: &ProjectConfig) -> Result<()> {
@@ -98,5 +127,13 @@ mod tests {
             script,
             "cd '/home/nick/src/my repo' && exec cargo test 'name with spaces'"
         );
+    }
+
+    #[test]
+    fn quotes_gitignore_script() {
+        let script = gitignore_script("/home/nick/src/my repo");
+        assert!(script.starts_with("cd '/home/nick/src/my repo' && if git rev-parse"));
+        assert!(script.contains("cat \"$root/.gitignore\""));
+        assert!(script.ends_with("else exit 10; fi"));
     }
 }

@@ -51,6 +51,26 @@ pub fn default_ignore_patterns() -> Vec<String> {
     .collect()
 }
 
+pub fn ignore_patterns_from_gitignore(contents: &str) -> Vec<String> {
+    let mut patterns = vec![".git/".to_owned()];
+
+    for line in contents.lines() {
+        let pattern = line.trim();
+        if pattern.is_empty() || pattern.starts_with('#') || pattern.starts_with('!') {
+            continue;
+        }
+
+        let pattern = pattern.trim_start_matches('/').to_owned();
+        if pattern.is_empty() || patterns.contains(&pattern) {
+            continue;
+        }
+
+        patterns.push(pattern);
+    }
+
+    patterns
+}
+
 pub fn derive_mutagen_session(host: &str, name: &str) -> String {
     let raw = format!("rdev-{host}-{name}");
     let sanitized: String = raw
@@ -101,5 +121,36 @@ mod tests {
     #[test]
     fn default_ignores_include_git() {
         assert!(default_ignore_patterns().contains(&".git/".to_owned()));
+    }
+
+    #[test]
+    fn parses_gitignore_patterns() {
+        let patterns = ignore_patterns_from_gitignore(
+            r#"
+# comment
+/target/
+node_modules/
+*.log
+!keep.log
+
+.cache/
+"#,
+        );
+
+        assert_eq!(
+            patterns,
+            vec![
+                ".git/".to_owned(),
+                "target/".to_owned(),
+                "node_modules/".to_owned(),
+                "*.log".to_owned(),
+                ".cache/".to_owned(),
+            ]
+        );
+    }
+
+    #[test]
+    fn gitignore_patterns_always_include_git() {
+        assert_eq!(ignore_patterns_from_gitignore(""), vec![".git/".to_owned()]);
     }
 }

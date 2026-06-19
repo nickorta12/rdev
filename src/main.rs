@@ -42,6 +42,7 @@ fn run(cli: Cli) -> Result<()> {
 }
 
 fn init(name: &str, remote: &str) -> Result<()> {
+    bincheck::require_binaries(&["ssh"])?;
     let remote = project::parse_remote_spec(remote)?;
     let config_path = paths::config_path()?;
     let cache_root = paths::cache_root()?;
@@ -50,13 +51,16 @@ fn init(name: &str, remote: &str) -> Result<()> {
     fs::create_dir_all(&local_path)
         .with_context(|| format!("failed to create {}", local_path.display()))?;
 
+    let ignore = ssh::remote_gitignore_patterns(&remote.host, &remote.remote_path)?
+        .unwrap_or_else(default_ignore_patterns);
+
     let project = ProjectConfig {
         name: name.to_owned(),
         host: remote.host.clone(),
         remote_path: remote.remote_path,
         local_path: local_path.to_string_lossy().into_owned(),
         mutagen_session: derive_mutagen_session(&remote.host, name),
-        ignore: default_ignore_patterns(),
+        ignore,
     };
 
     let mut config = Config::load(&config_path)?;

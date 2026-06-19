@@ -10,7 +10,9 @@ Mutagen handles sync. SSH handles remote command execution. `rdev` does not impl
 
 The desktop repository is the source of truth. Syncing `.git/` between machines is risky because Git metadata changes frequently and can be corrupted or conflicted by bidirectional file sync. `rdev` always excludes `.git/` during bootstrap and uses Mutagen's `--ignore-vcs` option for sync sessions.
 
-The default ignored paths are:
+For Git repositories, `rdev init` reads ignore patterns from the remote repository's root `.gitignore` and stores them in the project config. `.git/` is always added even if it is not listed in `.gitignore`.
+
+If the remote path is not inside a Git repository, `rdev` falls back to these default ignored paths:
 
 - `.git/`
 - `node_modules/`
