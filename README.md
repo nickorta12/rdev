@@ -94,12 +94,9 @@ rdev stop foo
 Generate shell completions manually:
 
 ```sh
-rdev completions bash
-rdev completions fish
-rdev completions zsh
+rdev completions
 ```
 
-The Nix package installs bash, fish, and zsh completions automatically.
 Project-name completions are dynamic and read the configured projects from `rdev`'s config.
 
 ## Recovery

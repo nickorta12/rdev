@@ -1,5 +1,4 @@
 use clap::{Parser, Subcommand, ValueHint};
-use clap_complete::Shell;
 
 #[derive(Debug, Parser)]
 #[command(name = "rdev")]
@@ -144,24 +143,8 @@ pub enum Command {
         #[arg(help = "Configured project name")]
         name: String,
     },
-    #[command(
-        about = "Check local rdev prerequisites",
-        after_help = "Examples:
-  rdev doctor"
-    )]
-    Doctor,
-    #[command(
-        about = "Generate shell completions",
-        long_about = "Generate command-line completions for the requested shell. Nix installs bash, fish, and zsh completions automatically for the packaged binary.",
-        after_help = "Examples:
-  rdev completions bash
-  rdev completions fish
-  rdev completions zsh > _rdev"
-    )]
-    Completions {
-        #[arg(help = "Shell to generate completions for")]
-        shell: Shell,
-    },
+    #[command(about = "Generate shell completions")]
+    Completions,
     #[command(name = "__project-names", hide = true)]
     ProjectNames,
 }

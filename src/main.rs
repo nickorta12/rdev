@@ -1,4 +1,3 @@
-mod bincheck;
 mod cli;
 mod completions;
 mod config;
@@ -40,19 +39,17 @@ fn run(cli: Cli) -> Result<()> {
         Command::ResetFromRemote { name, yes } => reset_from_remote(&name, yes),
         Command::List => list(),
         Command::Remove { name } => remove(&name),
-        Command::Doctor => doctor(),
-        Command::Completions { shell } => completions(shell),
+        Command::Completions => completions(),
         Command::ProjectNames => project_names(),
     }
 }
 
-fn completions(shell: clap_complete::Shell) -> Result<()> {
-    completions::generate(shell).context("failed to generate completions")?;
+fn completions() -> Result<()> {
+    completions::generate().context("failed to generate completions")?;
     Ok(())
 }
 
 fn init(name: &str, remote: &str) -> Result<()> {
-    bincheck::require_binaries(&["ssh"])?;
     let remote = project::parse_remote_spec(remote)?;
     let config_path = paths::config_path()?;
     let cache_root = paths::cache_root()?;
@@ -82,7 +79,6 @@ fn init(name: &str, remote: &str) -> Result<()> {
 }
 
 fn edit(name: &str) -> Result<()> {
-    bincheck::require_binaries(&["rsync", "mutagen"])?;
     let project = load_project(name)?;
     ensure_local_cache(&project)?;
     bootstrap_if_empty(&project)?;
@@ -91,7 +87,6 @@ fn edit(name: &str) -> Result<()> {
 }
 
 fn remote_shell(name: &str) -> Result<()> {
-    bincheck::require_binaries(&["ssh", "mutagen"])?;
     let project = load_project(name)?;
     mutagen::start_or_resume(&project)?;
     mutagen::flush(&project)?;
@@ -99,7 +94,6 @@ fn remote_shell(name: &str) -> Result<()> {
 }
 
 fn remote_run(name: &str, command: &[String]) -> Result<()> {
-    bincheck::require_binaries(&["ssh", "mutagen"])?;
     let project = load_project(name)?;
     mutagen::start_or_resume(&project)?;
     mutagen::flush(&project)?;
@@ -107,7 +101,6 @@ fn remote_run(name: &str, command: &[String]) -> Result<()> {
 }
 
 fn status(name: &str) -> Result<()> {
-    bincheck::require_binaries(&["ssh", "mutagen"])?;
     let project = load_project(name)?;
 
     println!("project: {}", project.name);
@@ -139,7 +132,6 @@ fn status(name: &str) -> Result<()> {
 }
 
 fn reset_from_remote(name: &str, yes: bool) -> Result<()> {
-    bincheck::require_binaries(&["rsync", "mutagen"])?;
     let project = load_project(name)?;
 
     if !yes && !confirm_reset(&project)? {
@@ -191,19 +183,10 @@ fn remove(name: &str) -> Result<()> {
     Ok(())
 }
 
-fn doctor() -> Result<()> {
-    bincheck::require_binaries(&["ssh", "rsync", "mutagen"])?;
-    println!("all required external binaries found");
-    println!("config: {}", paths::config_path()?.display());
-    println!("cache root: {}", paths::cache_root()?.display());
-    Ok(())
-}
-
 fn with_project<F>(name: &str, f: F) -> Result<()>
 where
     F: FnOnce(ProjectConfig) -> Result<()>,
 {
-    bincheck::require_binaries(&["mutagen"])?;
     f(load_project(name)?)
 }
 
@@ -228,8 +211,7 @@ fn bootstrap_if_empty(project: &ProjectConfig) -> Result<()> {
 }
 
 fn local_shell(project: &ProjectConfig) -> Result<()> {
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".into());
-    let status = ProcessCommand::new(shell)
+    let status = ProcessCommand::new("zsh")
         .current_dir(&project.local_path)
         .status()
         .context("failed to start local shell")?;

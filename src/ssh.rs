@@ -6,16 +6,13 @@ use shell_words::quote;
 use crate::project::{ProjectConfig, ignore_patterns_from_gitignore};
 
 pub fn shell_script(remote_path: &str) -> String {
-    format!(
-        "cd {} && exec \"${{SHELL:-/bin/sh}}\" -l",
-        quote(remote_path).into_owned()
-    )
+    format!("cd {} && exec zsh -l", quote(remote_path).into_owned())
 }
 
 pub fn run_script(remote_path: &str, command: &[String]) -> String {
     let quoted_command = quoted_command(command);
     format!(
-        "cd {} && exec \"${{SHELL:-/bin/sh}}\" -ic {}",
+        "cd {} && exec zsh -ic {}",
         quote(remote_path).into_owned(),
         quote(&quoted_command).into_owned()
     )
@@ -125,10 +122,7 @@ mod tests {
     #[test]
     fn quotes_remote_shell_script() {
         let script = shell_script("/home/nick/src/my repo");
-        assert_eq!(
-            script,
-            "cd '/home/nick/src/my repo' && exec \"${SHELL:-/bin/sh}\" -l"
-        );
+        assert_eq!(script, "cd '/home/nick/src/my repo' && exec zsh -l");
     }
 
     #[test]
@@ -139,7 +133,7 @@ mod tests {
         );
         assert_eq!(
             script,
-            "cd '/home/nick/src/my repo' && exec \"${SHELL:-/bin/sh}\" -ic 'cargo test '\\''name with spaces'\\'''"
+            "cd '/home/nick/src/my repo' && exec zsh -ic 'cargo test '\\''name with spaces'\\'''"
         );
     }
 
