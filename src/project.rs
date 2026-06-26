@@ -53,7 +53,11 @@ pub fn default_ignore_patterns() -> Vec<String> {
 
 pub fn ignore_patterns_from_gitignore(contents: &str) -> Vec<String> {
     let mut patterns = vec![".git/".to_owned()];
+    append_ignore_patterns_from_gitignore(&mut patterns, contents);
+    patterns
+}
 
+pub fn append_ignore_patterns_from_gitignore(patterns: &mut Vec<String>, contents: &str) {
     for line in contents.lines() {
         let pattern = line.trim();
         if pattern.is_empty() || pattern.starts_with('#') || pattern.starts_with('!') {
@@ -67,8 +71,6 @@ pub fn ignore_patterns_from_gitignore(contents: &str) -> Vec<String> {
 
         patterns.push(pattern);
     }
-
-    patterns
 }
 
 pub fn derive_mutagen_session(host: &str, name: &str) -> String {
@@ -152,5 +154,28 @@ node_modules/
     #[test]
     fn gitignore_patterns_always_include_git() {
         assert_eq!(ignore_patterns_from_gitignore(""), vec![".git/".to_owned()]);
+    }
+
+    #[test]
+    fn appends_gitignore_patterns_without_duplicates() {
+        let mut patterns = vec![".git/".to_owned(), "target/".to_owned()];
+        append_ignore_patterns_from_gitignore(
+            &mut patterns,
+            r#"
+# comment
+/target/
+node_modules/
+!node_modules/keep
+"#,
+        );
+
+        assert_eq!(
+            patterns,
+            vec![
+                ".git/".to_owned(),
+                "target/".to_owned(),
+                "node_modules/".to_owned(),
+            ]
+        );
     }
 }

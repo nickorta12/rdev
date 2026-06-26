@@ -22,7 +22,7 @@ pub struct Cli {
 pub enum Command {
     #[command(
         about = "Configure a remote project",
-        long_about = "Create or update a project entry in rdev's TOML config. The local cache directory is created, but sync is not started yet. For Git repositories, ignore patterns are read from the remote root .gitignore and .git/ is always added.",
+        long_about = "Create or update a project entry in rdev's TOML config. The local cache directory is created, but sync is not started yet. For Git repositories, ignore patterns are read from the remote root .gitignore. rsync and Mutagen also honor ~/.config/git/ignore when it exists. .git/ is always added.",
         after_help = "Examples:
   rdev init foo desktop:/home/nick/src/foo
   rdev init work macstudio:/Users/nick/src/work"

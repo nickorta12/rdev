@@ -10,7 +10,7 @@ Mutagen handles sync. SSH handles remote command execution. `rdev` does not impl
 
 The desktop repository is the source of truth. Syncing `.git/` between machines is risky because Git metadata changes frequently and can be corrupted or conflicted by bidirectional file sync. `rdev` always excludes `.git/` during bootstrap and uses Mutagen's `--ignore-vcs` option for sync sessions.
 
-For Git repositories, `rdev init` reads ignore patterns from the remote repository's root `.gitignore` and stores them in the project config. `.git/` is always added even if it is not listed in `.gitignore`.
+For Git repositories, `rdev init` reads ignore patterns from the remote repository's root `.gitignore` and stores them in the project config. At runtime, rsync and Mutagen also honor patterns from `~/.config/git/ignore` when that file exists. `.git/` is always added even if it is not listed in `.gitignore`.
 
 If the remote path is not inside a Git repository, `rdev` falls back to these default ignored paths:
 
@@ -62,7 +62,7 @@ Open a local cache shell:
 rdev edit foo
 ```
 
-If the cache is empty, `rdev edit` bootstraps it from the desktop with `rsync`, excluding `.git/` and ignored paths from the remote repository. It then starts or resumes the Mutagen session and opens a local shell in the cache.
+If the cache is empty, `rdev edit` bootstraps it from the desktop with `rsync`, excluding `.git/`, ignored paths from the remote repository, and patterns from `~/.config/git/ignore` when present. It then starts or resumes the Mutagen session and opens a local shell in the cache.
 
 Run a remote command in the real desktop repo:
 

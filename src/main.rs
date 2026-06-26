@@ -16,7 +16,10 @@ use clap::Parser;
 
 use crate::cli::{Cli, Command};
 use crate::config::Config;
-use crate::project::{ProjectConfig, default_ignore_patterns, derive_mutagen_session};
+use crate::project::{
+    ProjectConfig, append_ignore_patterns_from_gitignore, default_ignore_patterns,
+    derive_mutagen_session,
+};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -191,7 +194,20 @@ where
 }
 
 fn load_project(name: &str) -> Result<ProjectConfig> {
-    Config::load(&paths::config_path()?)?.project(name)
+    let mut project = Config::load(&paths::config_path()?)?.project(name)?;
+    apply_user_git_ignore(&mut project)?;
+    Ok(project)
+}
+
+fn apply_user_git_ignore(project: &mut ProjectConfig) -> Result<()> {
+    let path = paths::user_git_ignore_path()?;
+    match fs::read_to_string(&path) {
+        Ok(contents) => append_ignore_patterns_from_gitignore(&mut project.ignore, &contents),
+        Err(err) if err.kind() == io::ErrorKind::NotFound => {}
+        Err(err) => return Err(err).with_context(|| format!("failed to read {}", path.display())),
+    }
+
+    Ok(())
 }
 
 fn ensure_local_cache(project: &ProjectConfig) -> Result<()> {

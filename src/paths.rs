@@ -10,12 +10,22 @@ pub fn cache_root() -> Result<PathBuf> {
     cache_root_with(dirs::cache_dir().context("could not determine cache directory")?)
 }
 
+pub fn user_git_ignore_path() -> Result<PathBuf> {
+    Ok(user_git_ignore_path_with(
+        dirs::home_dir().context("could not determine home directory")?,
+    ))
+}
+
 pub fn config_path_with(config_home: PathBuf) -> Result<PathBuf> {
     Ok(config_home.join("rdev").join("config.toml"))
 }
 
 pub fn cache_root_with(cache_home: PathBuf) -> Result<PathBuf> {
     Ok(cache_home.join("rdev"))
+}
+
+pub fn user_git_ignore_path_with(home: PathBuf) -> PathBuf {
+    home.join(".config").join("git").join("ignore")
 }
 
 pub fn project_cache_path(cache_root: PathBuf, host: &str, name: &str) -> PathBuf {
@@ -37,5 +47,11 @@ mod tests {
         let root = cache_root_with(PathBuf::from("/home/nick/.cache")).unwrap();
         let path = project_cache_path(root, "desktop", "foo");
         assert_eq!(path, PathBuf::from("/home/nick/.cache/rdev/desktop/foo"));
+    }
+
+    #[test]
+    fn computes_user_git_ignore_path_from_home() {
+        let path = user_git_ignore_path_with(PathBuf::from("/home/nick"));
+        assert_eq!(path, PathBuf::from("/home/nick/.config/git/ignore"));
     }
 }
